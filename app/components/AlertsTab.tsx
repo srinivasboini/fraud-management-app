@@ -33,7 +33,8 @@ export default function AlertsTab() {
         
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alerts`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'apikey': 'my-secret-key'
           }
         })
 

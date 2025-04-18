@@ -31,7 +31,8 @@ export default function TransactionsTab() {
         
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/transactions`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'apikey': 'my-secret-key'
           }
         })
 
