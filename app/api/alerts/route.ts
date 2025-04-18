@@ -1,20 +1,4 @@
 import { NextResponse } from 'next/server'
-import Cors from 'cors'
-
-const cors = Cors({
-  methods: ['GET', 'POST', 'OPTIONS'],
-  origin: '*'
-})
-
-// Helper to run middleware
-function runMiddleware(req: Request, res: Response, fn: any) {
-  return new Promise((resolve, reject) => {
-    fn(req, res, (result: any) => {
-      if (result instanceof Error) reject(result)
-      resolve(result)
-    })
-  })
-}
 
 export async function GET(req: Request) {
   try {

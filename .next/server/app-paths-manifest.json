@@ -1,4 +1,8 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/sign-in/[[...sign-in]]/page": "app/sign-in/[[...sign-in]]/page.js",
   "/page": "app/page.js",
-  "/sign-in/[[...sign-in]]/page": "app/sign-in/[[...sign-in]]/page.js"
+  "/api/alerts/route": "app/api/alerts/route.js",
+  "/api/customers/route": "app/api/customers/route.js",
+  "/api/transactions/route": "app/api/transactions/route.js"
 }
