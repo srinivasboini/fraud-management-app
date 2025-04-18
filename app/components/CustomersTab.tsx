@@ -30,10 +30,9 @@ export default function CustomersTab() {
         const token = await getToken()
         console.log('Token:', token) // Debug log 
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/customers`, {
+        const response = await fetch('/api/customers', {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'apikey': 'my-secret-key'
+            'Authorization': `Bearer ${token}`
           }
         })
 

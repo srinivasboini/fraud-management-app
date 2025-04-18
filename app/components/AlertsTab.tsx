@@ -31,10 +31,9 @@ export default function AlertsTab() {
         const token = await getToken()
         console.log('Token:', token) // Debug log
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/alerts`, {
+        const response = await fetch('/api/alerts', {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'apikey': 'my-secret-key'
+            'Authorization': `Bearer ${token}`
           }
         })
 
