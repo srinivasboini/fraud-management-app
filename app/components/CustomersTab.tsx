@@ -5,31 +5,32 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@clerk/nextjs"
+import { User, Shield, CreditCard } from "lucide-react"
 
-interface Transaction {
-  transactionId: string
+interface Customer {
   customerId: string
-  accountId: string
-  amount: number
-  currency: string
-  timestamp: string
-  status: 'COMPLETED' | 'PENDING' | 'FAILED' | 'SUSPICIOUS'
+  name: string
+  riskProfile: 'Low' | 'Medium' | 'High'
+  kycStatus: 'Verified' | 'Pending' | 'Failed'
+  accounts: string[]
+  createdAt: string
+  lastUpdated: string
 }
 
-export default function TransactionsTab() {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+export default function CustomersTab() {
+  const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { getToken } = useAuth()
 
   useEffect(() => {
-    const fetchTransactions = async () => {
+    const fetchCustomers = async () => {
       try {
         setLoading(true)
         const token = await getToken()
-        console.log('Token:', token) // Debug log
+        console.log('Token:', token) // Debug log 
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/transactions`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/customers`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -40,35 +41,54 @@ export default function TransactionsTab() {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           console.error('Error response:', errorData) // Debug log
-          throw new Error(`Failed to fetch transactions: ${response.status} ${response.statusText}`)
+          throw new Error(`Failed to fetch customers: ${response.status} ${response.statusText}`)
         }
 
         const data = await response.json()
         console.log('Response data:', data) // Debug log
-        setTransactions(data)
+        setCustomers(data)
         setError(null)
       } catch (err) {
         console.error('Fetch error:', err) // Debug log
-        setError(err instanceof Error ? err.message : 'An error occurred while fetching transactions')
+        setError(err instanceof Error ? err.message : 'An error occurred while fetching customers')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchTransactions()
+    fetchCustomers()
   }, [getToken])
 
-  const getStatusColor = (status: Transaction['status']) => {
-    switch (status) {
-      case 'COMPLETED':
+  const getRiskProfileColor = (riskProfile: Customer['riskProfile']) => {
+    switch (riskProfile) {
+      case 'Low':
         return 'bg-green-100 text-green-800 border-green-200'
-      case 'PENDING':
+      case 'Medium':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'FAILED':
+      case 'High':
         return 'bg-red-100 text-red-800 border-red-200'
-      case 'SUSPICIOUS':
-        return 'bg-purple-100 text-purple-800 border-purple-200'
     }
+  }
+
+  const getKycStatusColor = (kycStatus: Customer['kycStatus']) => {
+    switch (kycStatus) {
+      case 'Verified':
+        return 'bg-green-100 text-green-800 border-green-200'
+      case 'Pending':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case 'Failed':
+        return 'bg-red-100 text-red-800 border-red-200'
+    }
+  }
+
+  const getAccountTypeIcon = (accountId: string) => {
+    // Simple logic to determine account type based on ID pattern
+    if (accountId.startsWith('SAV')) {
+      return <Shield className="h-4 w-4 text-blue-500" />
+    } else if (accountId.startsWith('CHK')) {
+      return <CreditCard className="h-4 w-4 text-purple-500" />
+    }
+    return <User className="h-4 w-4 text-gray-500" />
   }
 
   if (loading) {
@@ -106,7 +126,8 @@ export default function TransactionsTab() {
     <Card className="border-0 shadow-lg">
       <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
         <CardTitle className="flex items-center gap-2 text-2xl">
-          Transactions
+          <User className="h-6 w-6 text-primary" />
+          Customer List
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6">
@@ -114,32 +135,44 @@ export default function TransactionsTab() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Transaction ID</TableHead>
                 <TableHead>Customer ID</TableHead>
-                <TableHead>Account ID</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Timestamp</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Risk Profile</TableHead>
+                <TableHead>KYC Status</TableHead>
+                <TableHead>Accounts</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Last Updated</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((transaction) => (
-                <TableRow key={transaction.transactionId}>
-                  <TableCell className="font-medium">{transaction.transactionId}</TableCell>
-                  <TableCell>{transaction.customerId}</TableCell>
-                  <TableCell>{transaction.accountId}</TableCell>
+              {customers.map((customer) => (
+                <TableRow key={customer.customerId}>
+                  <TableCell className="font-medium">{customer.customerId}</TableCell>
+                  <TableCell>{customer.name}</TableCell>
                   <TableCell>
-                    {new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: transaction.currency
-                    }).format(transaction.amount)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(transaction.status)}>
-                      {transaction.status}
+                    <Badge className={getRiskProfileColor(customer.riskProfile)}>
+                      {customer.riskProfile}
                     </Badge>
                   </TableCell>
-                  <TableCell>{new Date(transaction.timestamp).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Badge className={getKycStatusColor(customer.kycStatus)}>
+                      {customer.kycStatus}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      {customer.accounts.map((account) => (
+                        <div key={account} className="flex items-center gap-2">
+                          {getAccountTypeIcon(account)}
+                          <span className="text-sm text-muted-foreground">
+                            {account}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>{new Date(customer.createdAt).toLocaleString()}</TableCell>
+                  <TableCell>{new Date(customer.lastUpdated).toLocaleString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -148,5 +181,4 @@ export default function TransactionsTab() {
       </CardContent>
     </Card>
   )
-}
-
+} 
