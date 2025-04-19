@@ -24,9 +24,7 @@ export function ViewDetailsModal({ isOpen, onClose, data }: ViewDetailsModalProp
                   {key.replace(/([A-Z])/g, ' $1').trim()}
                 </div>
                 <div className="col-span-2">
-                  {typeof value === 'string' && new Date(value).toString() !== 'Invalid Date'
-                    ? new Date(value).toLocaleString()
-                    : String(value)}
+                  {String(value)}
                 </div>
               </div>
             ))}

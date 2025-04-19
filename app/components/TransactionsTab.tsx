@@ -16,8 +16,8 @@ interface Transaction {
   amount: number
   currency: string
   status: string | object
-  timestamp: string
-  paymentMethod: string | object
+  transactionDate: string
+  paymentMethod: string | { description: string }
   description?: string | object
 }
 
@@ -80,13 +80,15 @@ export default function TransactionsTab() {
   }
 
   const handleViewDetails = (transaction: Transaction) => {
-    const sanitizedTransaction = {
+    console.log('Transaction data:', transaction)
+    const formattedTransaction = {
       ...transaction,
-      description: typeof transaction.description === 'object' 
-        ? JSON.stringify(transaction.description) 
-        : transaction.description
+      paymentMethod: typeof transaction.paymentMethod === 'object' && transaction.paymentMethod !== null
+        ? transaction.paymentMethod.description
+        : transaction.paymentMethod
     }
-    setSelectedTransaction(sanitizedTransaction)
+    console.log('Formatted transaction:', formattedTransaction)
+    setSelectedTransaction(formattedTransaction)
     setIsModalOpen(true)
   }
 
@@ -158,18 +160,18 @@ export default function TransactionsTab() {
                     {transaction.currency} {transaction.amount.toFixed(2)}
                   </TableCell>
                   <TableCell>
-                    <Badge className={getStatusColor(typeof transaction.status === 'object' ? JSON.stringify(transaction.status) : transaction.status as string)}>
-                      {typeof transaction.status === 'object' 
-                        ? JSON.stringify(transaction.status) 
-                        : transaction.status}
+                    <Badge className={getStatusColor(String(transaction.status))}>
+                      {String(transaction.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {typeof transaction.paymentMethod === 'object' 
-                      ? JSON.stringify(transaction.paymentMethod) 
-                      : transaction.paymentMethod}
+                    {typeof transaction.paymentMethod === 'object' && transaction.paymentMethod !== null
+                      ? transaction.paymentMethod.description
+                      : String(transaction.paymentMethod)}
                   </TableCell>
-                  <TableCell>{new Date(transaction.timestamp).toLocaleString()}</TableCell>
+                  <TableCell>
+                    {new Date(transaction.transactionDate).toLocaleString()}
+                  </TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"
