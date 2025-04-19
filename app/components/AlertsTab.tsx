@@ -22,14 +22,18 @@ export default function AlertsTab() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { getToken } = useAuth()
+  const { getToken, isLoaded, isSignedIn } = useAuth()
 
   useEffect(() => {
+    let isMounted = true
+
     const fetchAlerts = async () => {
+      if (!isLoaded || !isSignedIn) return
+
       try {
         setLoading(true)
         const token = await getToken()
-        console.log('Token:', token) // Debug log
+        if (!token || !isMounted) return
         
         const response = await fetch('/api/alerts', {
           headers: {
@@ -37,28 +41,35 @@ export default function AlertsTab() {
           }
         })
 
-        console.log('Response status:', response.status) // Debug log
+        if (!isMounted) return
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          console.error('Error response:', errorData) // Debug log
           throw new Error(`Failed to fetch alerts: ${response.status} ${response.statusText}`)
         }
 
         const data = await response.json()
-        console.log('Response data:', data) // Debug log
-        setAlerts(data)
-        setError(null)
+        if (isMounted) {
+          setAlerts(data)
+          setError(null)
+        }
       } catch (err) {
-        console.error('Fetch error:', err) // Debug log
-        setError(err instanceof Error ? err.message : 'An error occurred while fetching alerts')
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'An error occurred while fetching alerts')
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     fetchAlerts()
-  }, [getToken])
+
+    return () => {
+      isMounted = false
+    }
+  }, [getToken, isLoaded, isSignedIn])
 
   const getSeverityColor = (severity: Alert['severity']) => {
     switch (severity) {
