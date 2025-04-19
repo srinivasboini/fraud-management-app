@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
   try {
-    const targetUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/alerts`
+    const targetUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/transactions`
     const authHeader = req.headers.get('authorization')
     
     const response = await fetch(targetUrl, {
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error('Proxy error:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch alerts' },
+      { error: 'Failed to fetch transactions' },
       { status: 500 }
     )
   }

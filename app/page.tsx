@@ -1,22 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import AlertsTab from "./components/AlertsTab"
 import TransactionsTab from "./components/TransactionsTab"
 import CustomersTab from "./components/CustomersTab"
 import { useAuth } from "@clerk/nextjs"
-import { redirect } from "next/navigation"
-import { SignInButton, useUser, UserButton } from "@clerk/nextjs"
-import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import { UserButton } from "@clerk/nextjs"
 
-export default function FraudManagementApp() {
+export default function Home() {
   const [activeTab, setActiveTab] = useState('transactions')
-  const { isSignedIn } = useAuth()
+  const { isSignedIn, isLoaded } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.push('/sign-in')
+    }
+  }, [isLoaded, isSignedIn, router])
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
 
   if (!isSignedIn) {
-    redirect("/sign-in")
+    return null
   }
 
   return (

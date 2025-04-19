@@ -20,43 +20,54 @@ export default function TransactionsTab() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { getToken } = useAuth()
+  const { getToken, isLoaded, isSignedIn } = useAuth()
 
   useEffect(() => {
+    let isMounted = true
+
     const fetchTransactions = async () => {
+      if (!isLoaded || !isSignedIn) return
+
       try {
         setLoading(true)
         const token = await getToken()
-        console.log('Token:', token) // Debug log
+        if (!token || !isMounted) return
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/transactions`, {
+        const response = await fetch('/api/transactions', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         })
 
-        console.log('Response status:', response.status) // Debug log
+        if (!isMounted) return
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          console.error('Error response:', errorData) // Debug log
           throw new Error(`Failed to fetch transactions: ${response.status} ${response.statusText}`)
         }
 
         const data = await response.json()
-        console.log('Response data:', data) // Debug log
-        setTransactions(data)
-        setError(null)
+        if (isMounted) {
+          setTransactions(data)
+          setError(null)
+        }
       } catch (err) {
-        console.error('Fetch error:', err) // Debug log
-        setError(err instanceof Error ? err.message : 'An error occurred while fetching transactions')
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'An error occurred while fetching transactions')
+        }
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     fetchTransactions()
-  }, [getToken])
+
+    return () => {
+      isMounted = false
+    }
+  }, [getToken, isLoaded, isSignedIn])
 
   const getStatusColor = (status: Transaction['status']) => {
     switch (status) {
