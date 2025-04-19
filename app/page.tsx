@@ -9,11 +9,13 @@ import CustomersTab from "./components/CustomersTab"
 import { useAuth } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { UserButton } from "@clerk/nextjs"
+import { useInactivityTimeout } from './hooks/useInactivityTimeout'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('transactions')
   const { isSignedIn, isLoaded } = useAuth()
   const router = useRouter()
+  const { WarningModal } = useInactivityTimeout()
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -62,6 +64,7 @@ export default function Home() {
           </TabsContent>
         </Tabs>
       </div>
+      <WarningModal />
     </div>
   )
 }
