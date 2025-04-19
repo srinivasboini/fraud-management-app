@@ -5,7 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@clerk/nextjs"
-import { User, Shield, CreditCard } from "lucide-react"
+import { User, Shield, CreditCard, Eye } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ViewDetailsModal } from "./ViewDetailsModal"
 
 interface Customer {
   customerId: string
@@ -18,57 +21,41 @@ interface Customer {
 }
 
 export default function CustomersTab() {
+  const { getToken } = useAuth()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { getToken, isLoaded, isSignedIn } = useAuth()
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const itemsPerPage = 5
 
   useEffect(() => {
-    let isMounted = true
-
     const fetchCustomers = async () => {
-      if (!isLoaded || !isSignedIn) return
-
       try {
-        setLoading(true)
         const token = await getToken()
-        if (!token || !isMounted) return
-        
         const response = await fetch('/api/customers', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         })
 
-        if (!isMounted) return
-        
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(`Failed to fetch customers: ${response.status} ${response.statusText}`)
+          throw new Error('Failed to fetch customers')
         }
 
         const data = await response.json()
-        if (isMounted) {
-          setCustomers(data)
-          setError(null)
-        }
+        setCustomers(data)
       } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : 'An error occurred while fetching customers')
-        }
+        setError(err instanceof Error ? err.message : 'An error occurred')
       } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
     fetchCustomers()
-
-    return () => {
-      isMounted = false
-    }
-  }, [getToken, isLoaded, isSignedIn])
+  }, [getToken])
 
   const getRiskProfileColor = (riskProfile: Customer['riskProfile']) => {
     switch (riskProfile) {
@@ -92,73 +79,82 @@ export default function CustomersTab() {
     }
   }
 
-  const getAccountTypeIcon = (accountId: string) => {
-    // Simple logic to determine account type based on ID pattern
-    if (accountId.startsWith('SAV')) {
-      return <Shield className="h-4 w-4 text-blue-500" />
-    } else if (accountId.startsWith('CHK')) {
-      return <CreditCard className="h-4 w-4 text-purple-500" />
-    }
-    return <User className="h-4 w-4 text-gray-500" />
+  const handleCheckboxChange = (customerId: string) => {
+    setSelectedCustomers(prev =>
+      prev.includes(customerId)
+        ? prev.filter(id => id !== customerId)
+        : [...prev, customerId]
+    )
   }
+
+  const handleViewDetails = (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setIsModalOpen(true)
+  }
+
+  const totalPages = Math.ceil(customers.length / itemsPerPage)
+  const currentCustomers = customers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="rounded-md bg-red-50 p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-800">Error</h3>
-            <div className="mt-2 text-sm text-red-700">
-              {error}
-              <div className="mt-2 text-sm">
-                Please check the console for more details.
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <div className="text-red-500">{error}</div>
       </div>
     )
   }
 
   return (
-    <Card className="border-0 shadow-lg">
-      <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
-        <CardTitle className="flex items-center gap-2 text-2xl">
-          <User className="h-6 w-6 text-primary" />
-          Customer List
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="rounded-md border">
+    <div className="flex flex-col h-full">
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardHeader className="flex-none">
+          <CardTitle>Customers</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={selectedCustomers.length === currentCustomers.length}
+                    onCheckedChange={() => {
+                      if (selectedCustomers.length === currentCustomers.length) {
+                        setSelectedCustomers([])
+                      } else {
+                        setSelectedCustomers(currentCustomers.map(c => c.customerId))
+                      }
+                    }}
+                  />
+                </TableHead>
                 <TableHead>Customer ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Risk Profile</TableHead>
                 <TableHead>KYC Status</TableHead>
                 <TableHead>Accounts</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Last Updated</TableHead>
+                <TableHead>Created At</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => (
+              {currentCustomers.map((customer) => (
                 <TableRow key={customer.customerId}>
-                  <TableCell className="font-medium">{customer.customerId}</TableCell>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedCustomers.includes(customer.customerId)}
+                      onCheckedChange={() => handleCheckboxChange(customer.customerId)}
+                    />
+                  </TableCell>
+                  <TableCell>{customer.customerId}</TableCell>
                   <TableCell>{customer.name}</TableCell>
                   <TableCell>
                     <Badge className={getRiskProfileColor(customer.riskProfile)}>
@@ -170,26 +166,55 @@ export default function CustomersTab() {
                       {customer.kycStatus}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      {customer.accounts.map((account) => (
-                        <div key={account} className="flex items-center gap-2">
-                          {getAccountTypeIcon(account)}
-                          <span className="text-sm text-muted-foreground">
-                            {account}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </TableCell>
+                  <TableCell>{customer.accounts.length}</TableCell>
                   <TableCell>{new Date(customer.createdAt).toLocaleString()}</TableCell>
-                  <TableCell>{new Date(customer.lastUpdated).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleViewDetails(customer)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+        <div className="flex-none flex items-center justify-between p-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            {selectedCustomers.length} of {customers.length} row(s) selected.
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <div className="text-sm">
+              Page {currentPage} of {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </Card>
+
+      <ViewDetailsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        data={selectedCustomer}
+      />
+    </div>
   )
 } 

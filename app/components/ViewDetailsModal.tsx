@@ -1,4 +1,5 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface ViewDetailsModalProps {
   isOpen: boolean
@@ -6,26 +7,31 @@ interface ViewDetailsModalProps {
   data: any
 }
 
-export default function ViewDetailsModal({ isOpen, onClose, data }: ViewDetailsModalProps) {
+export function ViewDetailsModal({ isOpen, onClose, data }: ViewDetailsModalProps) {
   if (!data) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-primary">Details</DialogTitle>
-          <DialogDescription>
-            Full information for the selected item.
-          </DialogDescription>
+          <DialogTitle>Details</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          {Object.entries(data).map(([key, value]) => (
-            <div key={key} className="grid grid-cols-2 items-center gap-4">
-              <span className="font-medium text-secondary-foreground capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-              <span className="text-muted-foreground">{String(value)}</span>
-            </div>
-          ))}
-        </div>
+        <ScrollArea className="h-[400px] pr-4">
+          <div className="space-y-4">
+            {Object.entries(data).map(([key, value]) => (
+              <div key={key} className="grid grid-cols-3 gap-4">
+                <div className="font-medium capitalize">
+                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                </div>
+                <div className="col-span-2">
+                  {typeof value === 'string' && new Date(value).toString() !== 'Invalid Date'
+                    ? new Date(value).toLocaleString()
+                    : String(value)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )

@@ -5,159 +5,219 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@clerk/nextjs"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Eye } from "lucide-react"
+import { ViewDetailsModal } from "./ViewDetailsModal"
 
 interface Transaction {
   transactionId: string
   customerId: string
-  accountId: string
   amount: number
   currency: string
+  status: string | object
   timestamp: string
-  status: 'COMPLETED' | 'PENDING' | 'FAILED' | 'SUSPICIOUS'
+  paymentMethod: string | object
+  description?: string | object
 }
 
 export default function TransactionsTab() {
+  const { getToken } = useAuth()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { getToken, isLoaded, isSignedIn } = useAuth()
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const itemsPerPage = 5
 
   useEffect(() => {
-    let isMounted = true
-
     const fetchTransactions = async () => {
-      if (!isLoaded || !isSignedIn) return
-
       try {
-        setLoading(true)
         const token = await getToken()
-        if (!token || !isMounted) return
-        
         const response = await fetch('/api/transactions', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         })
 
-        if (!isMounted) return
-        
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(`Failed to fetch transactions: ${response.status} ${response.statusText}`)
+          throw new Error('Failed to fetch transactions')
         }
 
         const data = await response.json()
-        if (isMounted) {
-          setTransactions(data)
-          setError(null)
-        }
+        setTransactions(data)
       } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : 'An error occurred while fetching transactions')
-        }
+        setError(err instanceof Error ? err.message : 'An error occurred')
       } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
     fetchTransactions()
+  }, [getToken])
 
-    return () => {
-      isMounted = false
-    }
-  }, [getToken, isLoaded, isSignedIn])
-
-  const getStatusColor = (status: Transaction['status']) => {
-    switch (status) {
-      case 'COMPLETED':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'FAILED':
-        return 'bg-red-100 text-red-800 border-red-200'
-      case 'SUSPICIOUS':
-        return 'bg-purple-100 text-purple-800 border-purple-200'
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return "bg-green-500/10 text-green-500 hover:bg-green-500/20"
+      case "pending":
+        return "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20"
+      case "failed":
+        return "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+      default:
+        return "bg-gray-500/10 text-gray-500 hover:bg-gray-500/20"
     }
   }
 
+  const handleCheckboxChange = (transactionId: string) => {
+    setSelectedTransactions(prev =>
+      prev.includes(transactionId)
+        ? prev.filter(id => id !== transactionId)
+        : [...prev, transactionId]
+    )
+  }
+
+  const handleViewDetails = (transaction: Transaction) => {
+    const sanitizedTransaction = {
+      ...transaction,
+      description: typeof transaction.description === 'object' 
+        ? JSON.stringify(transaction.description) 
+        : transaction.description
+    }
+    setSelectedTransaction(sanitizedTransaction)
+    setIsModalOpen(true)
+  }
+
+  const totalPages = Math.ceil(transactions.length / itemsPerPage)
+  const currentTransactions = transactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="rounded-md bg-red-50 p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-800">Error</h3>
-            <div className="mt-2 text-sm text-red-700">
-              {error}
-              <div className="mt-2 text-sm">
-                Please check the console for more details.
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <div className="text-red-500">{error}</div>
       </div>
     )
   }
 
   return (
-    <Card className="border-0 shadow-lg">
-      <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
-        <CardTitle className="flex items-center gap-2 text-2xl">
-          Transactions
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="rounded-md border">
+    <div className="flex flex-col h-full">
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardHeader className="flex-none">
+          <CardTitle>Transactions</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={selectedTransactions.length === currentTransactions.length}
+                    onCheckedChange={() => {
+                      if (selectedTransactions.length === currentTransactions.length) {
+                        setSelectedTransactions([])
+                      } else {
+                        setSelectedTransactions(currentTransactions.map(t => t.transactionId))
+                      }
+                    }}
+                  />
+                </TableHead>
                 <TableHead>Transaction ID</TableHead>
                 <TableHead>Customer ID</TableHead>
-                <TableHead>Account ID</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Payment Method</TableHead>
                 <TableHead>Timestamp</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((transaction) => (
+              {currentTransactions.map((transaction) => (
                 <TableRow key={transaction.transactionId}>
-                  <TableCell className="font-medium">{transaction.transactionId}</TableCell>
-                  <TableCell>{transaction.customerId}</TableCell>
-                  <TableCell>{transaction.accountId}</TableCell>
                   <TableCell>
-                    {new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: transaction.currency
-                    }).format(transaction.amount)}
+                    <Checkbox
+                      checked={selectedTransactions.includes(transaction.transactionId)}
+                      onCheckedChange={() => handleCheckboxChange(transaction.transactionId)}
+                    />
+                  </TableCell>
+                  <TableCell>{transaction.transactionId}</TableCell>
+                  <TableCell>{transaction.customerId}</TableCell>
+                  <TableCell>
+                    {transaction.currency} {transaction.amount.toFixed(2)}
                   </TableCell>
                   <TableCell>
-                    <Badge className={getStatusColor(transaction.status)}>
-                      {transaction.status}
+                    <Badge className={getStatusColor(typeof transaction.status === 'object' ? JSON.stringify(transaction.status) : transaction.status as string)}>
+                      {typeof transaction.status === 'object' 
+                        ? JSON.stringify(transaction.status) 
+                        : transaction.status}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    {typeof transaction.paymentMethod === 'object' 
+                      ? JSON.stringify(transaction.paymentMethod) 
+                      : transaction.paymentMethod}
+                  </TableCell>
                   <TableCell>{new Date(transaction.timestamp).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleViewDetails(transaction)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+        <div className="flex-none flex items-center justify-between p-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            {selectedTransactions.length} of {transactions.length} row(s) selected.
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <div className="text-sm">
+              Page {currentPage} of {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </Card>
+
+      <ViewDetailsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        data={selectedTransaction}
+      />
+    </div>
   )
 }
 

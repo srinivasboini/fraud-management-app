@@ -5,7 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@clerk/nextjs"
-import { AlertTriangle, CheckCircle, Clock, XCircle } from "lucide-react"
+import { AlertTriangle, CheckCircle, Clock, XCircle, Eye } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ViewDetailsModal } from "./ViewDetailsModal"
 
 interface Alert {
   alertId: string
@@ -19,57 +22,41 @@ interface Alert {
 }
 
 export default function AlertsTab() {
+  const { getToken } = useAuth()
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { getToken, isLoaded, isSignedIn } = useAuth()
+  const [selectedAlerts, setSelectedAlerts] = useState<string[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const itemsPerPage = 5
 
   useEffect(() => {
-    let isMounted = true
-
     const fetchAlerts = async () => {
-      if (!isLoaded || !isSignedIn) return
-
       try {
-        setLoading(true)
         const token = await getToken()
-        if (!token || !isMounted) return
-        
         const response = await fetch('/api/alerts', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         })
 
-        if (!isMounted) return
-        
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(`Failed to fetch alerts: ${response.status} ${response.statusText}`)
+          throw new Error('Failed to fetch alerts')
         }
 
         const data = await response.json()
-        if (isMounted) {
-          setAlerts(data)
-          setError(null)
-        }
+        setAlerts(data)
       } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : 'An error occurred while fetching alerts')
-        }
+        setError(err instanceof Error ? err.message : 'An error occurred')
       } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
     fetchAlerts()
-
-    return () => {
-      isMounted = false
-    }
-  }, [getToken, isLoaded, isSignedIn])
+  }, [getToken])
 
   const getSeverityColor = (severity: Alert['severity']) => {
     switch (severity) {
@@ -95,64 +82,82 @@ export default function AlertsTab() {
     }
   }
 
+  const handleCheckboxChange = (alertId: string) => {
+    setSelectedAlerts(prev =>
+      prev.includes(alertId)
+        ? prev.filter(id => id !== alertId)
+        : [...prev, alertId]
+    )
+  }
+
+  const handleViewDetails = (alert: Alert) => {
+    setSelectedAlert(alert)
+    setIsModalOpen(true)
+  }
+
+  const totalPages = Math.ceil(alerts.length / itemsPerPage)
+  const currentAlerts = alerts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="rounded-md bg-red-50 p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-800">Error</h3>
-            <div className="mt-2 text-sm text-red-700">
-              {error}
-              <div className="mt-2 text-sm">
-                Please check the console for more details.
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <div className="text-red-500">{error}</div>
       </div>
     )
   }
 
   return (
-    <Card className="border-0 shadow-lg">
-      <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
-        <CardTitle className="flex items-center gap-2 text-2xl">
-          <AlertTriangle className="h-6 w-6 text-primary" />
-          Alerts
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="rounded-md border">
+    <div className="flex flex-col h-full">
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardHeader className="flex-none">
+          <CardTitle>Alerts</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={selectedAlerts.length === currentAlerts.length}
+                    onCheckedChange={() => {
+                      if (selectedAlerts.length === currentAlerts.length) {
+                        setSelectedAlerts([])
+                      } else {
+                        setSelectedAlerts(currentAlerts.map(alert => alert.alertId))
+                      }
+                    }}
+                  />
+                </TableHead>
                 <TableHead>Alert ID</TableHead>
                 <TableHead>Transaction ID</TableHead>
                 <TableHead>Severity</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Assigned To</TableHead>
                 <TableHead>Created At</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Fraud Type</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {alerts.map((alert) => (
+              {currentAlerts.map((alert) => (
                 <TableRow key={alert.alertId}>
-                  <TableCell className="font-medium">{alert.alertId}</TableCell>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedAlerts.includes(alert.alertId)}
+                      onCheckedChange={() => handleCheckboxChange(alert.alertId)}
+                    />
+                  </TableCell>
+                  <TableCell>{alert.alertId}</TableCell>
                   <TableCell>{alert.transactionId}</TableCell>
                   <TableCell>
                     <Badge className={getSeverityColor(alert.severity)}>
@@ -166,15 +171,54 @@ export default function AlertsTab() {
                   </TableCell>
                   <TableCell>{alert.assignedTo}</TableCell>
                   <TableCell>{new Date(alert.createdAt).toLocaleString()}</TableCell>
-                  <TableCell>{alert.description}</TableCell>
-                  <TableCell>{alert.fraudType}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleViewDetails(alert)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+        <div className="flex-none flex items-center justify-between p-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            {selectedAlerts.length} of {alerts.length} row(s) selected.
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <div className="text-sm">
+              Page {currentPage} of {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </Card>
+
+      <ViewDetailsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        data={selectedAlert}
+      />
+    </div>
   )
 }
 
