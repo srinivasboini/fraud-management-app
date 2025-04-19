@@ -42,7 +42,7 @@ export default function Home() {
             <p className="text-sm mt-2 text-primary-foreground/80">Monitor and manage potential fraudulent activities</p>
           </div>
           <div className="flex items-center gap-4">
-            <UserButton afterSignOutUrl="/" />
+            <UserButton afterSignOutUrl="/sign-in" />
           </div>
         </header>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="bg-background rounded-lg shadow-md p-6">
